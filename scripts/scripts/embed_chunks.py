@@ -9,7 +9,7 @@ with open(chunk_path, "r", encoding="utf-8") as f:
 
 print(f"{len(chunks)}개의 chunk 불러오기 완료")
 
-model = SentenceTransformer("all-MiniLM-L6-v2") 
+model = SentenceTransformer("all-MiniLM-L6-v2")
 
 # 임베딩
 embeddings = model.encode(chunks, show_progress_bar=True)
