@@ -1,12 +1,13 @@
 import json
 import faiss
-import numpy as np
 
 from sentence_transformers import SentenceTransformer
 # from transformers import pipeline
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from llm_server.config import FAISS_INDEX_PATH, METADATA_PATH
 #from transformers import GPT2Tokenizer
+from llm_server.remote_model import generate_with_remote_model
+
 
 # 모델/인덱스 로드 (최초 1회)
 embedder  = SentenceTransformer("all-MiniLM-L6-v2")
@@ -63,8 +64,8 @@ def get_answer(query: str):
     # 질문: {query}
     # 답변:"""
 
-    # prompt = f"다음 문서를 참고하여 질문에 답해주세요.\n\n문서:\n{context}\n\n질문: {query}\n정확하고 간결한 답변:"
-    prompt = "Question: What is the capital of Japan?\nAnswer:"
+    prompt = f"다음 문서를 참고하여 질문에 답해주세요.\n\n문서:\n{context}\n\n질문: {query}\n정확하고 간결한 답변:"
+    # prompt = "Question: What is the capital of Japan?\nAnswer:"
 
 
     #프롬프트 자르기
@@ -76,18 +77,18 @@ def get_answer(query: str):
     #     skip_special_tokens=True
     # )
 
-    print("=== context ===")
+    print("=== START context ===")
     print(context)
-    print("=== context ===")
+    print("=== END context ===")
 
-    print("=== prompt ===")
+    print("=== START prompt ===")
     print(prompt)
-    print("=== prompt ===")
+    print("=== END prompt ===")
 
 
 
     # 토크나이즈 (자동 잘림 포함)
-    inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
+    # inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
 
     # 모델 생성
     # output = llm(prompt, max_new_tokens=200)[0]["generated_text"]
@@ -108,19 +109,25 @@ def get_answer(query: str):
     #     repetition_penalty=1.1
     # )
 
-    outputs = llm.generate(**inputs, max_new_tokens=50)
+    # outputs = llm.generate(**inputs, max_new_tokens=50)
 
-    print("=== raw output ===")
-    print(outputs)
-    print("=== raw output ===")
+    # print("=== START raw output ===")
+    # # print(outputs)
+    # print("=== END raw output ===")
 
     # answer = output.split("답변:")[-1].strip()
     # return answer
 
-    answer = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    print("=== decoded output ===")
+    # answer = tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+    # Colab 서버에 프롬프트 전송
+    answer = generate_with_remote_model(prompt)
+    print("=== Start answer ===")
     print(repr(answer))
-    print("=== decoded output ===")
+    print("=== End answer ===")
 
     # return answer.split("답변:")[-1].strip()
-    return answer.strip()
+    #return answer.strip()
+
+    return answer
+
