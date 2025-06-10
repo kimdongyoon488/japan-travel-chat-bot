@@ -1,6 +1,6 @@
 import requests
 
-COLAB_API_URL = "https://807c-35-247-164-41.ngrok-free.app/generate/"
+COLAB_API_URL = "https://1398-34-91-247-75.ngrok-free.app//generate/"
 
 def generate_with_remote_model(prompt: str) -> str:
     try:

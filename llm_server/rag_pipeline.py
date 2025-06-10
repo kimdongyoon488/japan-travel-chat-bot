@@ -64,7 +64,7 @@ def get_answer(query: str):
     # 질문: {query}
     # 답변:"""
 
-    prompt = f"다음 문서를 참고하여 질문에 답해주세요.\n\n문서:\n{context}\n\n질문: {query}\n정확하고 간결한 답변:"
+    prompt = f"아래 내용을 참고하여 질문에 답해 주세요.\n\n[문서]\n{context}\n\n[질문]\n{query}\n\n[답변]"
     # prompt = "Question: What is the capital of Japan?\nAnswer:"
 
 
