@@ -42,19 +42,31 @@ def extract_page_content(url):
         title_tag = soup.find("h1")
         title = title_tag.get_text(strip=True) if title_tag else ""
 
-        # detail-wrapper 우선 시도
-        wrapper = soup.select_one("div.o-detail-contents__info-wrapper")
-        if wrapper:
-            content = wrapper.get_text(separator="\n", strip=True)
-        else:
-            # article-style fallback
-            article = soup.find("div", class_="article-body") or soup.find("div", class_="entry-content")
-            content = article.get_text(separator="\n", strip=True) if article else ""
+        # content
+        desc_tag = soup.find("h2", class_="o-detail-contents__description")
+        content = desc_tag.get_text(separator="\n", strip=True) if desc_tag else ""
+
+        # info_table
+        info_table = {}
+        info_table_tag = soup.find("table", class_="o-detail-contents__table")
+        if info_table_tag:
+            for row in info_table_tag.find_all("tr"):
+                th = row.find("th")
+                td = row.find("td")
+                if th and td:
+                    key = th.get_text(strip=True)
+                    if td.find_all("a"):
+                        value = [a.get("href") for a in td.find_all("a") if a.get("href")]
+                    else:
+                        value = td.get_text(separator="\n", strip=True)
+                    info_table[key] = value
+
 
         return {
             "url": url,
             "title": title,
-            "content": content
+            "content": content,
+            "info_table": info_table
         }
     except Exception as e:
         print(f"[ERROR] {url}: {e}")
@@ -91,32 +103,44 @@ def extract_itinerary_page_content(url):
         res = requests.get(url, headers=HEADERS)
         soup = BeautifulSoup(res.text, "html.parser")
 
-        # 코스 제목(상단에 h1, h2, h3 중 하나)
-        title = soup.find(["h1", "h2", "h3"])
-        course_title = title.get_text(strip=True) if title else ""
+        # HTML <title> 태그로 제목 덮어쓰기
+        html_title = soup.title.string.strip() if soup.title else ""
+
+        # <meta name="description"> 값 추출
+        meta_tag = soup.find("meta", attrs={"name": "description"})
+        description = meta_tag["content"].strip() if meta_tag and "content" in meta_tag.attrs else ""
 
         # 각 코스 구간
         spots = []
-        for spot_box in soup.find_all("div", class_="o-model-course-time__box"):
+        spot_boxes = soup.find_all("div", class_="o-model-course-spot__box")
+
+        for spot_box in spot_boxes:
             spot = {}
 
-            # 구간명 (section id 붙은 h4)
             h4 = spot_box.find_previous("h4")
             if h4:
                 spot["section"] = h4.get_text(strip=True)
-            # 구간 제목
+
             spot_title = spot_box.find("h5", class_="o-model-course-spot__title")
             if spot_title:
                 spot["title"] = spot_title.get_text(strip=True)
-            # 본문 (그 외 p, div 등 텍스트 모음)
+
             body = spot_box.get_text(separator="\n", strip=True)
             spot["body"] = body
+
+            right_box = spot_box.find("div", class_="o-model-course-spot__box-inner--right")
+            if right_box:
+                desc_tag = right_box.find("div", class_="o-detail-contents__description")
+                if desc_tag:
+                    spot["description"] = desc_tag.get_text(separator="\n", strip=True)
+
             spots.append(spot)
 
         return {
             "url": url,
             "type": "itinerary_course",
-            "title": course_title,
+            "title": html_title,
+            "description": description,
             "spots": spots
         }
     except Exception as e:
