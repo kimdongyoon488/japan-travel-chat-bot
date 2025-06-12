@@ -1,36 +1,72 @@
 import json
-import faiss
-import numpy as np
 from sentence_transformers import SentenceTransformer
+import numpy as np
+import os
+import faiss
 
-# 파일 경로
-chunk_path = "data/fukuoka_guide_chunks.json"
-index_path = "data/fukuoka_faiss.index"
-metadata_path = "data/fukuoka_metadata.json"  # optional: chunk별 원문 저장
 
-# chunk 로드
-with open(chunk_path, "r", encoding="utf-8") as f:
-    chunks = json.load(f)
+INPUT_PATH = "data/raw/fukuoka_raw1.json"
+EMBEDDING_OUTPUT = "data/fukuoka_embeddings.npy"
+METADATA_OUTPUT = "data/fukuoka_metadata.json"
+FAISS_OUTPUT = "data/fukuoka_faiss.index"
 
-print(f" {len(chunks)}개 chunk 불러옴")
+model = SentenceTransformer("sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
 
-# 임베딩
-model = SentenceTransformer("all-MiniLM-L6-v2")
-embeddings = model.encode(chunks, show_progress_bar=True)
-embeddings = np.array(embeddings).astype("float32")  # FAISS용 변환
+with open(INPUT_PATH, "r", encoding="utf-8") as f:
+    raw_data = json.load(f)
+
+texts = []
+metas = []
+
+def handle_detail_page(item):
+    content = item.get("content", "").strip()
+    info_table = item.get("info_table", {})
+    info_text = "\n".join(f"{k}: {v}" for k, v in info_table.items())
+    if content or info_text:
+        return [((content + ("\n" + info_text if info_text else "")).strip(), item["url"])]
+    return []
+
+def handle_section_detail(item):
+    content = item.get("content", "").strip()
+    if content:
+        return [(content, item["url"])]
+    return []
+
+def handle_course_page(item):
+    out = []
+    for spot in item.get("spots", []):
+        desc = spot.get("description", "").strip()
+        if desc:
+            out.append((desc, item["url"]))
+    return out
+
+for entry in raw_data:
+    entry_type = entry.get("type")
+    if entry_type == "detail_page":
+        chunks = handle_detail_page(entry)
+    elif entry_type == "section_detail":
+        chunks = handle_section_detail(entry)
+    elif entry_type in ["itinerary_course", "course_page"]:
+        chunks = handle_course_page(entry)
+    else:
+        chunks = []
+
+    for text, url in chunks:
+        texts.append(text)
+        metas.append({"url": url, "text": text})
+
+# 임베딩 수행
+embeddings = model.encode(texts, show_progress_bar=True)
+np.save(EMBEDDING_OUTPUT, embeddings)
 
 # FAISS 인덱스 생성 및 저장
 dimension = embeddings.shape[1]
-index = faiss.IndexFlatL2(dimension)  # L2 거리 기반 검색
-index.add(embeddings)
-faiss.write_index(index, index_path)
-print(f"FAISS 인덱스 저장 완료 → {index_path}")
+index = faiss.IndexFlatL2(dimension)        # L2 거리 기반 단순 인덱스
+index.add(embeddings.astype(np.float32))    # FAISS는 float32만 허용
+faiss.write_index(index, FAISS_OUTPUT)      # 인덱스 저장
 
+# 메타데이터 저장
+with open(METADATA_OUTPUT, "w", encoding="utf-8") as f:
+    json.dump(metas, f, ensure_ascii=False, indent=2)
 
-# metadata 저장 (나중에 검색 결과 → 원문 매핑용)
-with open(metadata_path, "w", encoding="utf-8") as f:
-    json.dump(chunks, f, ensure_ascii=False, indent=2)
-print(f"metadata 저장 완료 → {metadata_path}")
-
-
-
+print(f"[DONE] {len(texts)} 임베딩 후 FAISS 저장 완료.")

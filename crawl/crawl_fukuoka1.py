@@ -5,7 +5,7 @@ import os
 import json
 
 BASE_URL = "https://www.crossroadfukuoka.jp/kr"
-OUTPUT_PATH = "data/raw/fukuoka_raw1.json"
+OUTPUT_PATH = "../data/raw/fukuoka_raw1.json"
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
 }
@@ -33,6 +33,7 @@ def get_detail_links(list_url):
 
     return list(set(links))
 
+# 일반 상세 페이지 추출
 def extract_page_content(url):
     try:
         res = requests.get(url, headers=HEADERS)
@@ -64,6 +65,7 @@ def extract_page_content(url):
 
         return {
             "url": url,
+            "type": "detail_page",
             "title": title,
             "content": content,
             "info_table": info_table
@@ -89,6 +91,7 @@ def extract_sections_from_plan_page(url):
         if content:
             data_list.append({
                 "url": f"{url}#{section_id}",
+                "type": "section_detail" ,
                 "title": title.get_text(strip=True) if title else f"Section {section_id}",
                 "content": content
             })
@@ -158,7 +161,7 @@ def extract_itinerary_page_content(url):
 
         return {
             "url": url,
-            "type": "itinerary_course",
+            "type": "course_page",
             "title": html_title,
             "description": description,
             "spots": spots
