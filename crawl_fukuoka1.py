@@ -125,14 +125,34 @@ def extract_itinerary_page_content(url):
             if spot_title:
                 spot["title"] = spot_title.get_text(strip=True)
 
-            body = spot_box.get_text(separator="\n", strip=True)
-            spot["body"] = body
+            # body = spot_box.get_text(separator="\n", strip=True)
+            # spot["body"] = body
 
+            # 코스별 설명 추출
             right_box = spot_box.find("div", class_="o-model-course-spot__box-inner--right")
             if right_box:
                 desc_tag = right_box.find("div", class_="o-detail-contents__description")
                 if desc_tag:
                     spot["description"] = desc_tag.get_text(separator="\n", strip=True)
+
+
+            #코스별 기본정보 추출
+            info_table = {}
+            table = spot_box.find("table", class_=lambda c: c and "o-detail-contents__table" in c)
+            if table:
+                for row in table.find_all("tr"):
+                    th = row.find("th")
+                    td = row.find("td")
+                    if th and td:
+                        key = th.get_text(strip=True)
+                        if td.find_all("a"):
+                            value = [a.get("href") for a in td.find_all("a") if a.get("href")]
+                        else:
+                            value = td.get_text(separator="\n", strip=True)
+                        info_table[key] = value
+                if info_table:  # ✅ 비어있지 않으면만 추가
+                    spot["info_table"] = info_table
+
 
             spots.append(spot)
 
