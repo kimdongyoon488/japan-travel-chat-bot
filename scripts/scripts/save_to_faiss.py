@@ -17,28 +17,98 @@ with open(INPUT_PATH, "r", encoding="utf-8") as f:
 
 texts = []
 metas = []
+#
+# def handle_detail_page(item):
+#     content = item.get("content", "").strip()
+#     info_table = item.get("info_table", {})
+#     info_text = "\n".join(f"{k}: {v}" for k, v in info_table.items())
+#     if content or info_text:
+#         return [((content + ("\n" + info_text if info_text else "")).strip(), item["url"])]
+#     return []
+#
+# def handle_section_detail(item):
+#     content = item.get("content", "").strip()
+#     if content:
+#         return [(content, item["url"])]
+#     return []
+#
+# def handle_course_page(item):
+#     out = []
+#     for spot in item.get("spots", []):
+#         desc = spot.get("description", "").strip()
+#         if desc:
+#             out.append((desc, item["url"]))
+#     return out
 
 def handle_detail_page(item):
-    content = item.get("content", "").strip()
-    info_table = item.get("info_table", {})
-    info_text = "\n".join(f"{k}: {v}" for k, v in info_table.items())
-    if content or info_text:
-        return [((content + ("\n" + info_text if info_text else "")).strip(), item["url"])]
-    return []
+    chunks = []
+    url = item.get("url", "")
+    title = item.get("title", "")
 
-def handle_section_detail(item):
     content = item.get("content", "").strip()
     if content:
-        return [(content, item["url"])]
-    return []
+        chunks.append((content, url, title))
+
+    info_table = item.get("info_table", {})
+    for k, v in info_table.items():
+        if isinstance(v, list):
+            for v_item in v:
+                v_item = v_item.strip()
+                if v_item:
+                    chunks.append((f"{k}: {v_item}", url, title))
+        else:
+            v = str(v).strip()
+            if v:
+                chunks.append((f"{k}: {v}", url, title))
+    return chunks
+
+def handle_section_detail(item):
+    chunks = []
+    url = item.get("url", "")
+    title = item.get("title", "")
+    content = item.get("content", "").strip()
+    if content:
+        chunks.append((content, url, title))
+    info_table = item.get("info_table", {})
+    for k, v in info_table.items():
+        if isinstance(v, list):
+            for v_item in v:
+                v_item = v_item.strip()
+                if v_item:
+                    chunks.append((f"{k}: {v_item}", url, title))
+        else:
+            v = str(v).strip()
+            if v:
+                chunks.append((f"{k}: {v}", url, title))
+    return chunks
 
 def handle_course_page(item):
-    out = []
+    chunks = []
+    url = item.get("url", "")
+    title = item.get("title", "")
+    description = item.get("description", "").strip()
+    if description:
+        chunks.append((description, url, title))
     for spot in item.get("spots", []):
-        desc = spot.get("description", "").strip()
-        if desc:
-            out.append((desc, item["url"]))
-    return out
+        spot_section = spot.get("section", "").strip()
+        spot_desc = spot.get("description", "").strip()
+        # spot section+desc 각각 chunk화
+        if spot_section:
+            chunks.append((spot_section, url, title))
+        if spot_desc:
+            chunks.append((spot_desc, url, title))
+        info_table = spot.get("info_table", {})
+        for k, v in info_table.items():
+            if isinstance(v, list):
+                for v_item in v:
+                    v_item = v_item.strip()
+                    if v_item:
+                        chunks.append((f"{k}: {v_item}", url, title))
+            else:
+                v = str(v).strip()
+                if v:
+                    chunks.append((f"{k}: {v}", url, title))
+    return chunks
 
 for entry in raw_data:
     entry_type = entry.get("type")
@@ -51,9 +121,9 @@ for entry in raw_data:
     else:
         chunks = []
 
-    for text, url in chunks:
+    for text, url, title in chunks:
         texts.append(text)
-        metas.append({"url": url, "text": text})
+        metas.append({"url": url, "title": title, "text": text})
 
 # 임베딩 수행
 embeddings = model.encode(texts, show_progress_bar=True)

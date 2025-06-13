@@ -4,8 +4,10 @@ from urllib.parse import urljoin
 import os
 import json
 
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BASE_URL = "https://www.crossroadfukuoka.jp/kr"
-OUTPUT_PATH = "../data/raw/fukuoka_raw1.json"
+OUTPUT_PATH = os.path.join(PROJECT_ROOT, "data", "raw", "fukuoka_raw1.json")
+
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
 }
@@ -80,24 +82,48 @@ def extract_sections_from_plan_page(url):
     res = requests.get(url, headers=HEADERS)
     soup = BeautifulSoup(res.text, "html.parser")
 
-    sections = soup.find_all("div", id=lambda x: x and x.startswith("section-"))
-    data_list = []
+    main_title_tag = soup.find("h1", class_="o-detail-feature__title")
+    main_title = main_title_tag.get_text(strip=True) if main_title_tag else ""
 
-    for section in sections:
-        section_id = section.get("id")
-        title = section.find(["h1", "h2", "h3"])
-        content = section.get_text(separator="\n", strip=True)
+    spots = []
+    section_box = soup.find("div", class_="o-detail-feature__box--main")
 
-        if content:
-            data_list.append({
-                "url": f"{url}#{section_id}",
-                "type": "section_detail" ,
-                "title": title.get_text(strip=True) if title else f"Section {section_id}",
-                "content": content
-            })
+    if section_box:
+        for div in section_box.find_all("div", id=lambda x: x and x.startswith("section-"), recursive=False):
+            # 1. 카드형 체크
+            card_ul = div.find("ul", class_="o-detail-feature__list")
+            if card_ul:
+                # 카드형(여러 li)
+                for li in card_ul.find_all("li", class_="o-detail-feature__item", recursive=False):
+                    title = li.find("h3", class_="o-detail-feature__item-title")
+                    desc = li.find("div", class_="o-detail-contents__description")
+                    detail_a = li.find("a", href=True)
+                    spots.append({
+                        "section": title.get_text(strip=True) if title else "",
+                        "description": desc.get_text(strip=True) if desc else "",
+                        "detail_url": urljoin(BASE_URL, detail_a["href"]) if detail_a else ""
+                    })
+            else:
+                # 싱글형
+                title_tag = div.find("h2", class_="o-heading--detail")
+                title = title_tag.get_text(strip=True) if title_tag else ""
+                desc_div = div.find("div", class_="o-detail-contents__description")
+                description = desc_div.get_text(separator="\n", strip=True) if desc_div else ""
+                spots.append({
+                    "section": title,
+                    "description": description,
+                    "detail_url": ""
+                })
 
-    print(f"  └─ {len(data_list)} sections extracted")
-    return data_list
+
+    data = {
+        "url": url,
+        "type": "section_detail",
+        "title": main_title,
+        "spots": spots
+    }
+    print(f"  └─ {len(spots)} spots extracted")
+    return [data]
 
 
 #추천 코스 페이지 추출
@@ -173,6 +199,7 @@ def extract_itinerary_page_content(url):
 
 
 def main():
+    print("실제 저장 경로:", os.path.abspath(OUTPUT_PATH))
     os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
     all_data = []
 
