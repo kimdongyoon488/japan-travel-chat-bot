@@ -1,10 +1,10 @@
 import requests
 
-COLAB_API_URL = "https://64ec-34-124-200-225.ngrok-free.app/generate/"
+COLAB_API_URL = "https://f269-34-16-232-204.ngrok-free.app/generate"
 
 def generate_with_remote_model(prompt: str) -> str:
     try:
-        response = requests.post(COLAB_API_URL, json={"prompt": prompt})
+        response = requests.post(COLAB_API_URL, json={"prompt": prompt}, verify=False)
         response.raise_for_status()
         return response.json().get("answer", "")
     except Exception as e:
