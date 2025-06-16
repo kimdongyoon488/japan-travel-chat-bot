@@ -1,6 +1,10 @@
 import json
 import faiss
 import numpy as np
+import hashlib
+import re
+import unicodedata
+
 
 from sentence_transformers import SentenceTransformer
 # from transformers import pipeline
@@ -62,18 +66,27 @@ def get_answer(query: str):
     # print("indices[0]:", indices[0])
 
     retrieved_chunks = []
+    seen_norm_texts = set()
 
+
+    #중복 chunk 제거
     for i in indices[0]:
         if i < len(chunks):
-            # 각 chunk는 dict이므로 'text' 필드만 슬라이싱
-            text = chunks[i].get("text", "")
-            retrieved_chunks.append(text[:300])
-        else:
-            print(f"경고: 인덱스 {i}가 chunks 길이 {len(chunks)}를 벗어남")
+            raw_text = chunks[i].get("text", "")
+            normalized = normalize_text(raw_text)
+            h = hashlib.md5(normalized.encode("utf-8")).hexdigest()
+
+            if normalized not in seen_norm_texts:
+                retrieved_chunks.append(raw_text)
+                seen_norm_texts.add(normalized)  # 정규화된 텍스트로 비교
+            else:
+                print(f"중복 제거된 chunk index: {i}")
+
+
     context = "\n".join(retrieved_chunks)
 
-    if len(context) > 1000:
-        context = context[:1000]
+    if len(context) > 1500:
+        context = context[:1500]
 
     prompt = (
         f"다음은 사용자의 질문에 친절하게 답변하는 한국어 인공지능 비서입니다.\n\n"
@@ -97,5 +110,37 @@ def get_answer(query: str):
     # return answer.split("답변:")[-1].strip()
     #return answer.strip()
 
+    raw_text_1 = chunks[36]["text"]
+    raw_text_2 = chunks[994]["text"]
+
+    print("== 차이 여부 ==")
+    print("동일?", raw_text_1 == raw_text_2)
+
+    norm1 = normalize_text(raw_text_1)
+    norm2 = normalize_text(raw_text_2)
+
+    print("== 정규화 후 비교 ==")
+    print("정규화 후 동일?", norm1 == norm2)
+
+    print("정규화 후 1:", repr(norm1))
+    print("정규화 후 2:", repr(norm2))
+
+    print("정규화 후 1:", [ord(c) for c in norm1])
+    print("정규화 후 2:", [ord(c) for c in norm2])
+
     return answer
 
+
+# chunk 비교 시 정규화 하여 비교 진행
+def normalize_text(text: str) -> str:
+    # 유니코드 정규화 (전각/반각, 특수문자 등 통일)
+    text = unicodedata.normalize("NFKC", text).strip()
+
+    # 줄바꿈/탭/전각공백 제거 → 일반 공백으로 통일
+    text = text.replace("\r", " ").replace("\n", " ").replace("\t", " ")
+    text = text.replace("\u3000", " ")  # ← 전각 공백 (full-width space) 제거
+
+    # 다중 공백 압축
+    text = re.sub(r"\s+", " ", text)
+
+    return text.strip()
