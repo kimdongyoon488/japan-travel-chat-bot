@@ -8,7 +8,8 @@ Original file is located at
 """
 
 !pip install pyngrok
-!pip install googletrans==4.0.0-rc1
+#!pip install googletrans==4.0.0-rc1
+!pip install fastapi uvicorn nest_asyncio pyngrok transformers accelerate torch --quiet
 
 from pyngrok import ngrok
 from huggingface_hub import login
@@ -18,13 +19,13 @@ ngrok.set_auth_token("")
 #huggingface 토큰
 login("")
 
-from googletrans import Translator
+# from googletrans import Translator
 
-#번역 테스트
-translator = Translator()
-text = "후쿠오카에서 가볼만한 명소는 어디야?"
-translated = translator.translate(text, src="ko", dest="en")
-print(translated.text)
+# #번역 테스트
+# translator = Translator()
+# text = "후쿠오카에서 가볼만한 명소는 어디야?"
+# translated = translator.translate(text, src="ko", dest="en")
+# print(translated.text)
 
 from fastapi import FastAPI, Request
 from pydantic import BaseModel
@@ -46,14 +47,26 @@ import torch
 # model = AutoModelForCausalLM.from_pretrained("skt/kogpt2-base-v2")
 # model.eval()
 
-model_name = "beomi/KoAlpaca-Polyglot-5.8B"
+# model_name = "beomi/KoAlpaca-Polyglot-5.8B"
+# model_name = "Bllossom/llama-3.2-Korean-Bllossom-3B"
+
+# tokenizer = AutoTokenizer.from_pretrained(model_name)
+# model = AutoModelForCausalLM.from_pretrained(
+#     model_name,
+#     device_map="auto",
+#     torch_dtype="auto",
+# )
+
+model_name = "Bllossom/llama-3.2-Korean-Bllossom-AICA-5B"
 
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 model = AutoModelForCausalLM.from_pretrained(
     model_name,
-    device_map="auto",
-    torch_dtype="auto",
+    torch_dtype=torch.float16,
+    device_map="auto"
 )
+model.eval()
+
 
 
 # if torch.cuda.is_available():
@@ -75,14 +88,24 @@ async def generate_answer(request: Request):
 
     with torch.no_grad():
         output = model.generate(
-            input_ids,
+            input_ids=input_ids,
             max_new_tokens=128,
             do_sample=True,
             temperature=0.7,
-            top_p=0.9
+            top_p=0.9,
+            pad_token_id=tokenizer.eos_token_id  # 경고 방지용 설정
         )
-    answer = tokenizer.decode(output[0], skip_special_tokens=True)
-    return {"answer": answer}
+
+    # 전체 디코딩 결과
+    decoded = tokenizer.decode(output[0], skip_special_tokens=True)
+
+    #  prompt 이후 생성된 부분만 추출
+    if decoded.startswith(prompt):
+        answer_text = decoded[len(prompt):].strip()
+    else:
+        answer_text = decoded
+
+    return {"answer": answer_text}
 
 @app.get("/")
 async def root():
