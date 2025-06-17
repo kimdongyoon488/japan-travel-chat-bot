@@ -22,9 +22,10 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
          <div className="fixed inset-0 -z-10">
-          <img
+             <img
             src="/chatbot-bg.jpg"
             alt="후쿠오카"
+            className="w-full h-full object-cover"
             // className="w-full h-full object-cover blur-[2px] brightness-100"
             draggable={false}
           />
