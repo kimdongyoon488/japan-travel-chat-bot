@@ -89,10 +89,11 @@ async def generate_answer(request: Request):
     with torch.no_grad():
         output = model.generate(
             input_ids=input_ids,
-            max_new_tokens=128,
+            max_new_tokens=512,
             do_sample=True,
             temperature=0.7,
             top_p=0.9,
+            eos_token_id=tokenizer.eos_token_id,
             pad_token_id=tokenizer.eos_token_id  # 경고 방지용 설정
         )
 
