@@ -88,10 +88,49 @@ def get_answer(query: str):
     if len(context) > 1500:
         context = context[:1500]
 
-    prompt = (
-        f"다음은 사용자의 질문에 친절하게 답변하는 한국어 인공지능 비서입니다.\n\n"
-        f"[문서]\n{context}\n\n[질문]\n{query}\n\n[답변]"
-    )
+    # prompt = (
+    #     f"다음은 사용자의 질문에 친절하게 답변하는 한국어 인공지능 비서입니다.\n\n"
+    #     f"[문서]\n{context}\n\n[질문]\n{query}\n\n[답변]"
+    # )
+    #
+    # prompt = f"""
+    # 너는 여행 정보를 잘 아는 한국어 비서야.
+    # 사용자의 질문에 문서를 참고해서 친절하게 알려줘.
+    #
+    # 문서:
+    # {context}
+    #
+    # 질문: {query}
+    # """
+
+    if context.strip():
+        prompt = f"""
+        너는 한국어로 여행 정보를 알려주는 친절한 AI야.
+        답변을 여러번 하지 말고 문서를 참고해서 질문에 대해 딱 한 번, 정중하게 답해줘.
+
+        문서 정보:
+        {context}
+
+        질문: {query}
+        답변:"""
+
+    # if context.strip():
+    #     prompt = f"""
+    #     아래 문서를 참고하여 사용자의 질문에 관련된 것만 친절하게 존댓말로 답변해줘.
+    #
+    #     문서 정보:
+    #     {context}
+    #
+    #     질문: {query}
+    #     답변:"""
+
+    else:
+        prompt = f"""
+        사용자의 질문에 존댓말로 한 번만 답변해줘.
+
+        질문: {query}
+        답변:"""
+
 
     print("=== START context ===")
     print(context)
