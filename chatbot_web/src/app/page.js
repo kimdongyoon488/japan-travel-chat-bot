@@ -60,7 +60,7 @@ export default function ChatBot() {
         "
       >
         {/* 헤더 */}
-        <div className="flex items-center gap-2 pb-4 border-b border-sky-100 mb-4">
+        <div className="flex items-center gap-2 pb-4 border-b border-black mb-4">
           <MapPin className="text-sky-500" />
           <span className="font-bold text-xl text-sky-700">Chat Bot</span>
         </div>
